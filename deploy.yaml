@@ -1,0 +1,63 @@
+---
+dockerRepository:
+  developmentRepositoryName: 
+  productionRepositoryName: 
+  branchRepositoryName:
+    master: 
+  registryRoot: eu.gcr.io
+application:
+  packageJSON: true
+  pathToKubernetesFiles: kubernetes/config
+  kubernetesTemplate:
+    branchVariables:
+      production:
+      - DOMAIN=
+      - MAIN_DOMAIN=
+      - REPLICA_COUNT=8
+      - LEGACY_SERVER_URL=
+      - BASE_URL=
+      - API_URL=
+      - FRONTEND_ENV=production
+      - WASABI_API_URL=
+      - PEER5_TOKEN=dc9jagk60w3y3mt6171f
+      production,acceptance:
+      - SECRETS_LOCATION=production
+      - FRONTEND_URL=
+      - INGRESS_CLASS=nginx-frontend
+      acceptance:
+      - DOMAIN=
+      - MAIN_DOMAIN=
+      - REPLICA_COUNT=1
+      - LEGACY_SERVER_URL=
+      - BASE_URL=
+      - API_URL=
+      - FRONTEND_ENV=acceptance
+      master,acceptance:
+      - WASABI_API_URL=
+      master,dev:
+      - SECRETS_LOCATION=development
+      - FRONTEND_URL=
+      - FRONTEND_ENV=staging
+      master:
+      - INGRESS_CLASS=nginx-frontend
+      - DOMAIN=
+      - MAIN_DOMAIN=
+      - REPLICA_COUNT=1
+      - LEGACY_SERVER_URL=
+      - BASE_URL=
+      - API_URL=
+    globalVariables:
+    - APP_NAME={{.KD_APP_NAME}}
+    - NAMESPACE={{.KD_KUBERNETES_NAMESPACE}}
+    - IMAGE={{.KD_IMAGE_FULL_PATH}}
+    - NODE_ENV={{.KD_KUBERNETES_NAMESPACE}}
+
+tests:
+  - name: Start container, test ping, yarn test
+    dockerArgs: |
+      -d --env-file .env_sample
+    type: in-test-container
+    commands:
+    - sleep 3 # Give the node server some time to start
+    - curl -s --max-time 3 localhost:3000/health
+    - bash -c "PORT=4200 NODE_ENV=test yarn test"

@@ -1,0 +1,25 @@
+---
+kind: ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+metadata:
+  name: {{ env "APP_NAME" }}
+  namespace: monitoring
+  labels:
+    component: {{ env "APP_NAME" }}
+    prometheus: prometheus-nginx
+spec:
+  jobLabel: component
+  selector:
+    matchLabels:
+      # Label of a service to select
+      # e.g.  app: frontend-server-master
+      app: {{ env "APP_NAME" }}
+  endpoints:
+  - interval: 10s
+    path: /metrics
+    port: metrics
+  namespaceSelector:
+    matchNames:
+    - {{ env "NAMESPACE" }}
+
+

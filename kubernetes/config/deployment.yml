@@ -1,0 +1,114 @@
+---
+  apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    name: {{ env "KD_RELEASE_NAME" }}
+    namespace: {{ env "NAMESPACE" }}
+  spec:
+    replicas: {{ env "REPLICA_COUNT" }}
+    selector:
+      matchLabels:
+        app: {{ env "APP_NAME" }}
+    template:
+      metadata:
+        labels:
+          app: {{ env "APP_NAME" }}
+          release: {{ env "KD_RELEASE_NAME" }}
+          gitsha: "{{ env "KD_GIT_SHA" }}"
+      spec:
+        containers:
+        - name: {{ env "APP_NAME" }}
+          imagePullPolicy: Always
+          image: {{ env "IMAGE" }}
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 2
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 2
+            periodSeconds: 2
+            successThreshold: 1
+            timeoutSeconds: 1
+          ports:
+            - name: web
+              containerPort: 3000
+            - name: metrics
+              containerPort: 10254
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "3000"
+            - name: NODE_ENV
+              value: {{ env "NODE_ENV" }}
+            - name: GIT_SHA
+              value: "{{ env "KD_GIT_SHA" }}"
+            - name: BASE_URL
+              value: {{ env "BASE_URL" }}
+            - name: API_URL
+              value: {{ env "API_URL" }}
+            - name: LEGACY_SERVER_URL
+              value: {{ env "LEGACY_SERVER_URL" }}
+            - name: FRONTEND_URL
+              value: {{ env "FRONTEND_URL" }}
+            - name: FRONTEND_ENV
+              value: {{ env "FRONTEND_ENV" }}
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1000Mi
+            requests:
+              cpu: 250m
+              memory: 250Mi
+        dnsPolicy: "Default"
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: type
+                  operator: In
+                  values:
+                  - critical
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - {{ env "APP_NAME" }}
+                topologyKey: "kubernetes.io/hostname"
+        tolerations:
+          - key: "type"
+            operator: "Equal"
+            value: "critical"
+            effect: "NoSchedule"
+{{ if eq (env "NAMESPACE") "production" }}
+# Only create the HorizontalPodAutoscaler for production
+---
+  apiVersion: autoscaling/v1
+  kind: HorizontalPodAutoscaler
+  metadata:
+    name: {{ env "KD_RELEASE_NAME" }}
+    namespace: {{ env "NAMESPACE" }}
+  spec:
+    scaleTargetRef:
+      apiVersion: apps/v1beta1
+      kind: Deployment
+      name: {{ env "KD_RELEASE_NAME" }}
+    minReplicas: 8
+    maxReplicas: 200
+    targetCPUUtilizationPercentage: 30
+{{ end }}

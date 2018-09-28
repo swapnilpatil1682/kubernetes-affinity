@@ -1,0 +1,14 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ env "APP_NAME" }}-pdb
+  namespace: {{ env "NAMESPACE" }}
+  labels:
+    app: {{ env "APP_NAME" }}
+    release: {{ env "KD_RELEASE_NAME" }}
+spec:
+  minAvailable: 70%
+  selector:
+    matchLabels:
+      app: {{ env "APP_NAME" }}
+
